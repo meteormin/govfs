@@ -4,7 +4,6 @@
         FilePlus,
         FolderPlus,
         RefreshCw,
-        House,
         LogOut,
         Trash2,
         ServerCog,
@@ -281,6 +280,7 @@
     }
 
     async function goHome() {
+        appState.adminPage = null;
         appState.setCurrentPath("/");
         await clearSearch();
     }
@@ -349,16 +349,10 @@
     >
         <button
             class="text-xs font-bold text-gray-400 hover:text-white"
-            onclick={() => (appState.adminPage = null)}>EXPLORER</button
+            title="Go to Root"
+            onclick={goHome}>EXPLORER</button
         >
         <div class="flex gap-1">
-            <button
-                onclick={goHome}
-                class="p-1 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors"
-                title="Go to Root"
-            >
-                <House size={16} />
-            </button>
             <button
                 onclick={createNewFile}
                 class="p-1 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors"
