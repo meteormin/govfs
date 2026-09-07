@@ -12,9 +12,9 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"uuid"
 
 	"github.com/goccy/go-json"
-	"github.com/google/uuid"
 	vfs "github.com/shabatoily/govfs"
 	"github.com/shabatoily/govfs/internal/client"
 	"github.com/shabatoily/govfs/internal/types"
@@ -23,8 +23,8 @@ import (
 )
 
 func newRandomMetaRes(isDir bool) types.MetaRes {
-	id, _ := uuid.NewRandom()
-	randPath, _ := uuid.NewRandom()
+	id := uuid.NewV4()
+	randPath := uuid.NewV4()
 	return types.MetaRes{
 		Meta: vfs.Meta{
 			ID:       id,
@@ -78,7 +78,7 @@ func TestVFSClient_Search(t *testing.T) {
 }
 
 func TestVFSClient_Read(t *testing.T) {
-	id := uuid.New()
+	id := uuid.NewV4()
 	content := "hello world"
 	expectedMeta := types.MetaRes{
 		// Fill minimal fields
@@ -180,7 +180,7 @@ func TestVFSClient_CreateFile(t *testing.T) {
 }
 
 func TestVFSClient_FileOps_Write(t *testing.T) {
-	id := uuid.New()
+	id := uuid.NewV4()
 	content := "updated content"
 	expectedMeta := types.MetaRes{}
 
@@ -205,7 +205,7 @@ func TestVFSClient_FileOps_Write(t *testing.T) {
 }
 
 func TestVFSClient_FileOps_Move(t *testing.T) {
-	id := uuid.New()
+	id := uuid.NewV4()
 	dst := "moved-loc"
 	expectedMeta := types.MetaRes{}
 
@@ -230,7 +230,7 @@ func TestVFSClient_FileOps_Move(t *testing.T) {
 }
 
 func TestVFSClient_FileOps_Copy(t *testing.T) {
-	id := uuid.New()
+	id := uuid.NewV4()
 	dst := "copy-loc"
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -252,7 +252,7 @@ func TestVFSClient_FileOps_Copy(t *testing.T) {
 }
 
 func TestVFSClient_FileOps_Delete(t *testing.T) {
-	id := uuid.New()
+	id := uuid.NewV4()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/vfs/"+id.String(), r.URL.Path)
@@ -352,7 +352,7 @@ func TestVFSClient_Admin_Rotate(t *testing.T) {
 }
 
 func TestVFSClient_Meta_Stat(t *testing.T) {
-	id := uuid.New()
+	id := uuid.NewV4()
 	expectedMeta := types.MetaRes{
 		Meta: vfs.Meta{
 			ID:   id,
@@ -420,7 +420,7 @@ func TestVFSClient_Tree_Canceled(t *testing.T) {
 }
 
 func TestVFSClient_Misc_WriteComments(t *testing.T) {
-	id := uuid.New()
+	id := uuid.NewV4()
 	comment := "this is a comment"
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

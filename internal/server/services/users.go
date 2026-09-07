@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"uuid"
 
 	badgerdb "github.com/dgraph-io/badger/v4"
 	"github.com/goccy/go-json"
-	"github.com/google/uuid"
 	"github.com/shabatoily/govfs/internal/types"
 	driverbadger "github.com/shabatoily/govfs/pkg/drivers/badger"
 	"golang.org/x/crypto/bcrypt"
@@ -86,7 +86,7 @@ func (s *UserStore) Create(username, password string, role types.Role) (User, er
 		return User{}, err
 	}
 	now := time.Now().UTC()
-	user := User{ID: uuid.New(), Username: username, PasswordHash: hash, Role: role, CreatedAt: now, UpdatedAt: now}
+	user := User{ID: uuid.NewV4(), Username: username, PasswordHash: hash, Role: role, CreatedAt: now, UpdatedAt: now}
 	err = s.db.Update(func(txn *badgerdb.Txn) error {
 		if _, getErr := txn.Get(usernameKey(username)); getErr == nil {
 			return ErrAlreadyExists
@@ -176,7 +176,7 @@ func (s *UserStore) List() ([]User, error) {
 
 func (s *UserStore) RecordEvent(user User, action string, status int) error {
 	event := UserEvent{
-		ID:        uuid.New(),
+		ID:        uuid.NewV4(),
 		UserID:    user.ID,
 		Username:  user.Username,
 		Action:    action,
@@ -310,10 +310,10 @@ func systemEntry(item *badgerdb.Item) (types.SystemEntryRes, error) {
 				CreatedAt: user.CreatedAt, UpdatedAt: user.UpdatedAt,
 			}
 		case bytes.HasPrefix(key, usernamePrefix):
-			id, err := uuid.FromBytes(data)
-			if err != nil {
-				return err
+			if len(data) != 16 {
+				return fmt.Errorf("invalid UUID (got %d bytes)", len(data))
 			}
+			id := uuid.UUID(data)
 			entry.Key = string(key)
 			entry.Kind = "username-index"
 			entry.Value = id.String()

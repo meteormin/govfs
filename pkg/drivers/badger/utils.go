@@ -9,12 +9,12 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"uuid"
 
 	"github.com/goccy/go-json"
 	vfs "github.com/shabatoily/govfs"
 
 	"github.com/dgraph-io/badger/v4"
-	"github.com/google/uuid"
 )
 
 const (
@@ -143,10 +143,7 @@ func getMeta(item *badger.Item) (internalMeta, error) {
 
 // findMetaItemByID는 ID를 기반으로 해당 항목의 메타데이터 Badger 항목을 찾습니다.
 func findMetaItemByID(txn *badger.Txn, id uuid.UUID) (*badger.Item, error) {
-	idBytes, err := id.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
+	idBytes := id[:]
 
 	indexKey := makeKey(prefixIndex, idBytes)
 	pathItem, err := txn.Get(indexKey)
@@ -211,10 +208,7 @@ func findByPath(txn *badger.Txn, path string) (internalMeta, error) {
 // deleteIndex는 메타데이터 ID 검색용 인덱스를 삭제합니다.
 func deleteIndex(txn *badger.Txn, meta *vfs.Meta) error {
 	// Delete Index
-	idBytes, marshalBinErr := meta.ID.MarshalBinary()
-	if marshalBinErr != nil {
-		return marshalBinErr
-	}
+	idBytes := meta.ID[:]
 	idxKey := makeKey(prefixIndex, idBytes)
 	if err := txn.Delete(idxKey); err != nil {
 		return err
@@ -248,10 +242,7 @@ func deleteChunks(txn *badger.Txn, id []byte) error {
 // deleteItem은 단일 파일 항목(메타데이터, 인덱스, 데이터 청크)을 모두 삭제합니다.
 func deleteItem(txn *badger.Txn, im *internalMeta) error {
 	// Single file delete
-	idBytes, marshalBinErr := im.InternalID.MarshalBinary()
-	if marshalBinErr != nil {
-		return marshalBinErr
-	}
+	idBytes := im.InternalID[:]
 	// Delete chunks
 	if err := deleteChunks(txn, idBytes); err != nil {
 		return err
@@ -312,10 +303,7 @@ func moveItem(txn *badger.Txn, im *internalMeta, newPath string) error {
 	}
 
 	// 4. Update index (ID -> Path)
-	idBytes, err := im.ID.MarshalBinary()
-	if err != nil {
-		return err
-	}
+	idBytes := im.ID[:]
 	idxKey := makeKey(prefixIndex, idBytes)
 	if err := txn.Set(idxKey, []byte(newPath)); err != nil {
 		return err

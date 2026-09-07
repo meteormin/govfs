@@ -10,10 +10,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"uuid"
 
 	"github.com/dgraph-io/badger/v4"
 	"github.com/goccy/go-json"
-	"github.com/google/uuid"
 	vfs "github.com/shabatoily/govfs"
 	"github.com/shabatoily/govfs/pkg/log"
 )
@@ -262,10 +262,10 @@ func (bvfs *BadgerVFS) Open(id uuid.UUID) (*vfs.File, error) {
 	if !im.IsDir {
 		// Use internalID for data access
 		// If internalID is nil (legacy or dir), it will fall back to meta.ID inside getMeta logic but for safety check
-		if im.InternalID == uuid.Nil {
+		if im.InternalID == uuid.Nil() {
 			im.InternalID = im.ID
 		}
-		idBytes, _ := im.InternalID.MarshalBinary()
+		idBytes := im.InternalID[:]
 		reader = &blobReader{
 			vfs:  bvfs,
 			id:   idBytes,
@@ -289,21 +289,12 @@ func (bvfs *BadgerVFS) Create(path string, r io.Reader) (vfs.Meta, error) {
 		path = "/" + path
 	}
 
-	id, err := uuid.NewRandom()
-	if err != nil {
-		return vfs.Meta{}, err
-	}
+	id := uuid.NewV4()
 	// For new file, Public ID and Internal ID are both new and distinct
 	// specific internalID is generated for data storage
-	internalID, err := uuid.NewRandom()
-	if err != nil {
-		return vfs.Meta{}, err
-	}
+	internalID := uuid.NewV4()
 
-	internalIDBytes, err := internalID.MarshalBinary()
-	if err != nil {
-		return vfs.Meta{}, err
-	}
+	internalIDBytes := internalID[:]
 
 	// 1. Write chunks first (to avoid holding lock on meta or parent)
 	size, err := bvfs.writeChunks(internalIDBytes, r)
@@ -351,7 +342,7 @@ func (bvfs *BadgerVFS) Create(path string, r io.Reader) (vfs.Meta, error) {
 			return internalErr
 		}
 
-		idBytes, _ := id.MarshalBinary()
+		idBytes := id[:]
 		indexKey := makeKey(prefixIndex, idBytes)
 		if internalErr := txn.Set(indexKey, []byte(path)); internalErr != nil {
 			return internalErr
@@ -372,20 +363,11 @@ func (bvfs *BadgerVFS) Write(id uuid.UUID, r io.Reader) (vfs.Meta, error) {
 	var im internalMeta
 	var oldInternalID uuid.UUID
 
-	idBytes, err := id.MarshalBinary()
-	if err != nil {
-		return vfs.Meta{}, err
-	}
+	idBytes := id[:]
 
 	// 1. Generate New Internal ID
-	newInternalID, err := uuid.NewRandom()
-	if err != nil {
-		return vfs.Meta{}, err
-	}
-	newInternalIDBytes, err := newInternalID.MarshalBinary()
-	if err != nil {
-		return vfs.Meta{}, err
-	}
+	newInternalID := uuid.NewV4()
+	newInternalIDBytes := newInternalID[:]
 
 	// 2. Write New Chunks (Stream)
 	size, err := bvfs.writeChunks(newInternalIDBytes, r)
@@ -450,8 +432,8 @@ func (bvfs *BadgerVFS) Write(id uuid.UUID, r io.Reader) (vfs.Meta, error) {
 
 	// 4. Delete Old Chunks (Best Effort / Cleanup)
 	// If this fails, we have orphan chunks but data is consistent.
-	if oldInternalID != uuid.Nil {
-		oldIDBytes, _ := oldInternalID.MarshalBinary()
+	if oldInternalID != uuid.Nil() {
+		oldIDBytes := oldInternalID[:]
 		if err := bvfs.deleteChunks(oldIDBytes); err != nil {
 			return vfs.Meta{}, err
 		}
@@ -632,10 +614,7 @@ func (bvfs *BadgerVFS) Mkdir(path string) (vfs.Meta, error) {
 			return vfs.ErrAlreadyExists
 		}
 
-		newUUID, err := uuid.NewRandom()
-		if err != nil {
-			return err
-		}
+		newUUID := uuid.NewV4()
 
 		meta := vfs.Meta{
 			ID:       newUUID,
@@ -648,7 +627,7 @@ func (bvfs *BadgerVFS) Mkdir(path string) (vfs.Meta, error) {
 
 		im = internalMeta{
 			Meta:       meta,
-			InternalID: uuid.Nil,
+			InternalID: uuid.Nil(),
 		}
 
 		metaKey := makeKey(prefixMeta, []byte(im.Path))
@@ -657,10 +636,7 @@ func (bvfs *BadgerVFS) Mkdir(path string) (vfs.Meta, error) {
 			return internalErr
 		}
 
-		idBytes, internalErr := im.ID.MarshalBinary()
-		if internalErr != nil {
-			return internalErr
-		}
+		idBytes := im.ID[:]
 		indexKey := makeKey(prefixIndex, idBytes)
 		internalErr = txn.Set(indexKey, []byte(path))
 		if internalErr != nil {
@@ -705,10 +681,7 @@ func (bvfs *BadgerVFS) Stat(id uuid.UUID) (vfs.Meta, error) {
 	var path string
 	var im internalMeta
 	err := bvfs.db.View(func(txn *badger.Txn) error {
-		idBytes, internalErr := id.MarshalBinary()
-		if internalErr != nil {
-			return internalErr
-		}
+		idBytes := id[:]
 		indexKey := makeKey(prefixIndex, idBytes)
 		pathItem, internalErr := txn.Get(indexKey)
 		if internalErr != nil {
@@ -829,10 +802,7 @@ func (bvfs *BadgerVFS) Copy(id uuid.UUID, dst string) (vfs.Meta, error) {
 			return internalErr
 		}
 
-		idBytes, internalErr := im.InternalID.MarshalBinary()
-		if internalErr != nil {
-			return internalErr
-		}
+		idBytes := im.InternalID[:]
 
 		// Read all chunks from source (using InternalID)
 		reader := &blobReader{
@@ -843,17 +813,11 @@ func (bvfs *BadgerVFS) Copy(id uuid.UUID, dst string) (vfs.Meta, error) {
 
 		// 새로운 ID로 복제
 
-		newMetaID, err := uuid.NewRandom()
-		if err != nil {
-			return err
-		}
+		newMetaID := uuid.NewV4()
 
-		newInternalID, err := uuid.NewRandom()
-		if err != nil {
-			return err
-		}
+		newInternalID := uuid.NewV4()
 		// New internal ID for the Copy
-		newInternalIDBytes, _ := newInternalID.MarshalBinary()
+		newInternalIDBytes := newInternalID[:]
 
 		newIM = im
 		newIM.ID = newMetaID
@@ -867,10 +831,7 @@ func (bvfs *BadgerVFS) Copy(id uuid.UUID, dst string) (vfs.Meta, error) {
 			return setMetaErr
 		}
 
-		newIdBytes, internalErr := newIM.ID.MarshalBinary()
-		if internalErr != nil {
-			return internalErr
-		}
+		newIdBytes := newIM.ID[:]
 
 		if _, err := bvfs.writeChunks(newInternalIDBytes, reader); err != nil {
 			return err

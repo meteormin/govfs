@@ -5,11 +5,11 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"uuid"
 
 	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/client"
-	"github.com/google/uuid"
 	"github.com/shabatoily/govfs/internal/types"
 )
 

@@ -5,8 +5,8 @@ import (
 	"encoding/base64"
 	"strings"
 	"testing"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/shabatoily/govfs/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,7 +37,7 @@ func TestDecodeContent(t *testing.T) {
 func TestWaitForMutation(t *testing.T) {
 	events := make(chan types.SSEMessage, 1)
 	errors := make(chan error)
-	id := uuid.New()
+	id := uuid.NewV4()
 	events <- types.SSEMessage{
 		Event: types.SSEEventPublish,
 		Data: types.SSEData{

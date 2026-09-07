@@ -6,9 +6,9 @@ import (
 	"errors"
 	"sync/atomic"
 	"time"
+	"uuid"
 
 	"github.com/gofiber/fiber/v3/log"
-	"github.com/google/uuid"
 
 	"github.com/shabatoily/govfs/internal/types"
 )
@@ -64,13 +64,13 @@ type client struct {
 func (b *SSEBroker) Subscribe(req types.SubscribeReq) (uuid.UUID, <-chan *types.SSEMessage, error) {
 	if !b.isRunning.Load() {
 		log.Warn("Attempted to subscribe to stopped SSE Broker")
-		return uuid.Nil, nil, errors.New("SSE broker is not running")
+		return uuid.Nil(), nil, errors.New("SSE broker is not running")
 	}
 
 	// 구독 시 채널 생성을 브로커가 담당하여 일관성을 유지합니다.
 	// 버퍼를 두어 일시적인 블로킹을 방지합니다.
 	ch := make(chan *types.SSEMessage, defaultBufferSize)
-	id := uuid.New()
+	id := uuid.NewV4()
 	now := time.Now()
 	subMsg := &types.SSEMessage{
 		ID:    id,
@@ -98,14 +98,14 @@ func (b *SSEBroker) Subscribe(req types.SubscribeReq) (uuid.UUID, <-chan *types.
 	case b.newClients <- newClient:
 	case <-b.ctx.Done():
 		log.Info("SSE Broker is shutting down, cannot subscribe")
-		return uuid.Nil, nil, errors.New("SSE broker is shutting down")
+		return uuid.Nil(), nil, errors.New("SSE broker is shutting down")
 	}
 
 	select {
 	case <-newClient.ready:
 		log.Infof("SSE Broker subscribed: %s", id)
 	case <-b.ctx.Done():
-		return uuid.Nil, nil, errors.New("SSE broker is shutting down")
+		return uuid.Nil(), nil, errors.New("SSE broker is shutting down")
 	}
 
 	// 클라이언트 컨텍스트가 취소(연결 끊김)되면 자동으로 Unsubscribe 호출
@@ -153,7 +153,7 @@ func (b *SSEBroker) Publish(user string, id uuid.UUID, data *types.SSEData, retr
 
 // Broadcast는 연결된 모든 클라이언트에게 메시지를 브로드캐스트합니다.
 func (b *SSEBroker) Broadcast(user string, data *types.SSEData, retry time.Duration) {
-	b.Publish(user, uuid.Nil, data, retry)
+	b.Publish(user, uuid.Nil(), data, retry)
 }
 
 // Error는 특정 클라이언트에게 에러 이벤트를 전송합니다.
@@ -263,7 +263,7 @@ func (b *SSEBroker) listen() {
 			req.ch <- clients
 		case publication := <-b.message:
 			msg := publication.msg
-			if msg.ID != uuid.Nil {
+			if msg.ID != uuid.Nil() {
 				// 특정 클라이언트에게만 전송
 				if c, ok := b.clients[msg.ID]; ok && c.User == publication.user {
 					select {

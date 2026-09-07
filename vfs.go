@@ -5,8 +5,7 @@ import (
 	"io"
 	"iter"
 	"time"
-
-	"github.com/google/uuid"
+	"uuid"
 )
 
 // 기본 디렉터리 및 권한 설정 상수입니다.

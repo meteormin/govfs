@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+	"uuid"
 
 	badgerdb "github.com/dgraph-io/badger/v4"
 	"github.com/gofiber/fiber/v3/log"
-	"github.com/google/uuid"
 	vfs "github.com/shabatoily/govfs"
 	"github.com/shabatoily/govfs/internal/types"
 	"github.com/shabatoily/govfs/pkg/drivers"

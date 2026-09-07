@@ -14,8 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	vfs "github.com/shabatoily/govfs"
 	"github.com/shabatoily/govfs/pkg/log"
 )
@@ -201,10 +201,7 @@ func (ls *LocalStorage) Create(path string, r io.Reader) (vfs.Meta, error) {
 	}
 
 	// 2. Update Metadata
-	id, err := uuid.NewRandom()
-	if err != nil {
-		return vfs.Meta{}, err
-	}
+	id := uuid.NewV4()
 
 	meta := vfs.Meta{
 		ID:        id,
@@ -323,7 +320,7 @@ func (ls *LocalStorage) Mkdir(path string) (vfs.Meta, error) {
 		return vfs.Meta{}, err
 	}
 
-	id := uuid.New()
+	id := uuid.NewV4()
 	meta := vfs.Meta{
 		ID:       id,
 		Path:     path,
@@ -479,10 +476,7 @@ func (ls *LocalStorage) Copy(id uuid.UUID, dst string) (vfs.Meta, error) {
 		return vfs.Meta{}, copyErr
 	}
 
-	newID, err := uuid.NewRandom()
-	if err != nil {
-		return vfs.Meta{}, err
-	}
+	newID := uuid.NewV4()
 
 	newMeta := vfs.Meta{
 		ID:        newID,

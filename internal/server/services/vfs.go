@@ -6,8 +6,8 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
+	"uuid"
 
-	"github.com/google/uuid"
 	vfs "github.com/shabatoily/govfs"
 	"github.com/shabatoily/govfs/internal/types"
 	"github.com/shabatoily/govfs/pkg/drivers/badger"

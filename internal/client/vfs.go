@@ -9,10 +9,10 @@ import (
 	"mime/multipart"
 	"net/url"
 	"path/filepath"
+	"uuid"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/client"
-	"github.com/google/uuid"
 	"github.com/shabatoily/govfs/internal/types"
 )
 

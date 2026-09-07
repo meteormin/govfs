@@ -9,9 +9,9 @@ import (
 	"net/http"
 	"testing"
 	"time"
+	"uuid"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 	vfs "github.com/shabatoily/govfs"
 	"github.com/shabatoily/govfs/internal/server/services"
 	"github.com/shabatoily/govfs/internal/types"
@@ -128,7 +128,7 @@ func TestVfsHandler_List(t *testing.T) {
 	// Mock Data
 	mockMeta := []vfs.Meta{
 		{
-			ID:        uuid.New(),
+			ID:        uuid.NewV4(),
 			Name:      "test.txt",
 			Path:      "/test.txt",
 			Extension: "txt",
@@ -173,13 +173,13 @@ func TestVfsHandler_Search(t *testing.T) {
 	app := fiber.New()
 	app.Get("/vfs/search", handler.Search)
 
-	fileID := uuid.New()
+	fileID := uuid.NewV4()
 	mockVFS.On("Tree", vfs.Root).Return(&vfs.TreeNode{
 		Meta: vfs.Meta{Path: vfs.Root, Name: vfs.Root, IsDir: true},
 		Children: []*vfs.TreeNode{
-			{Meta: vfs.Meta{ID: uuid.New(), Path: "/Reports", Name: "Reports", IsDir: true}},
+			{Meta: vfs.Meta{ID: uuid.NewV4(), Path: "/Reports", Name: "Reports", IsDir: true}},
 			{Meta: vfs.Meta{ID: fileID, Path: "/annual-report.pdf", Name: "annual-report.pdf", Extension: "pdf"}},
-			{Meta: vfs.Meta{ID: uuid.New(), Path: "/notes.txt", Name: "notes.txt", Extension: "txt"}},
+			{Meta: vfs.Meta{ID: uuid.NewV4(), Path: "/notes.txt", Name: "notes.txt", Extension: "txt"}},
 		},
 	}, nil)
 
@@ -229,7 +229,7 @@ func TestVfsHandler_Stat(t *testing.T) {
 	app.Get("/vfs/:id/stat", handler.Stat)
 
 	// Mock Data
-	id := uuid.New()
+	id := uuid.NewV4()
 	mockMeta := vfs.Meta{
 		ID:        id,
 		Name:      "test.txt",
@@ -280,7 +280,7 @@ func TestVfsHandler_Create(t *testing.T) {
 
 	// Mock Data
 	mockMeta := vfs.Meta{
-		ID:        uuid.New(),
+		ID:        uuid.NewV4(),
 		Name:      "new.txt",
 		Path:      "/new.txt",
 		Extension: "txt",
@@ -336,7 +336,7 @@ func TestVfsHandler_Delete(t *testing.T) {
 	app := fiber.New()
 	app.Delete("/vfs/:id", handler.Delete)
 
-	id := uuid.New()
+	id := uuid.NewV4()
 	mockMeta := vfs.Meta{ID: id, Name: "test.txt", Path: "/test.txt"}
 	deleted := make(chan struct{})
 	mockVFS.On("Delete", id).Run(func(mock.Arguments) {
@@ -377,7 +377,7 @@ func TestVfsHandler_Move(t *testing.T) {
 	app := fiber.New()
 	app.Patch("/vfs/:id", handler.Move)
 
-	id := uuid.New()
+	id := uuid.NewV4()
 	mockMeta := vfs.Meta{
 		ID:        id,
 		Name:      "moved.txt",
@@ -397,7 +397,7 @@ func TestVfsHandler_Move(t *testing.T) {
 	reqp, err := http.NewRequestWithContext(context.Background(), "PATCH", "/vfs/"+id.String(), bytes.NewBuffer(body))
 	require.NoError(t, err)
 	reqp.Header.Set("Content-Type", "application/json")
-	reqp.Header.Set("X-Client-ID", uuid.NewString())
+	reqp.Header.Set("X-Client-ID", uuid.NewV4().String())
 
 	resp, err := app.Test(reqp)
 	defer func(res *http.Response) {
@@ -417,7 +417,7 @@ func TestVfsHandler_MoveRejectsMissingName(t *testing.T) {
 	app := fiber.New()
 	app.Patch("/vfs/:id", handler.Move)
 
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPatch, "/vfs/"+uuid.NewString(), bytes.NewBufferString(`{}`))
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPatch, "/vfs/"+uuid.NewV4().String(), bytes.NewBufferString(`{}`))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 
@@ -432,7 +432,7 @@ func TestVfsHandler_WriteRejectsInvalidJSON(t *testing.T) {
 	app := fiber.New()
 	app.Put("/vfs/:id", handler.Write)
 
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPut, "/vfs/"+uuid.NewString(), bytes.NewBufferString(`{`))
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPut, "/vfs/"+uuid.NewV4().String(), bytes.NewBufferString(`{`))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 
@@ -461,7 +461,7 @@ func TestVfsHandler_AsyncExecuteTargetsClient(t *testing.T) {
 	<-otherCh
 
 	handler := &VfsHandler{broker: broker}
-	meta := types.SSEMeta{ID: uuid.New(), Path: "/test.txt", Action: "vfs.create"}
+	meta := types.SSEMeta{ID: uuid.NewV4(), Path: "/test.txt", Action: "vfs.create"}
 	handler.asyncExecute(target.String(), func() (types.SSEMeta, error) {
 		return meta, nil
 	})

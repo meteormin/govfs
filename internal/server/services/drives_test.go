@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/shabatoily/govfs/pkg/drivers"
 	"github.com/shabatoily/govfs/pkg/drivers/badger"
 	"github.com/shabatoily/govfs/pkg/drivers/localstorage"
@@ -25,12 +25,12 @@ func TestDriveManagerSeparatesUsers(t *testing.T) {
 				IdleTimeout: time.Hour,
 			})
 			t.Cleanup(func() { _ = manager.Close() })
-			firstID := uuid.New()
+			firstID := uuid.NewV4()
 			first, err := manager.Drive(firstID)
 			if err != nil {
 				t.Fatal(err)
 			}
-			second, err := manager.Drive(uuid.New())
+			second, err := manager.Drive(uuid.NewV4())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -54,7 +54,7 @@ func TestDriveManagerSeparatesUsers(t *testing.T) {
 			if err != nil || !open || stats.Items != 1 || stats.Size != 6 {
 				t.Fatalf("드라이브 통계 = %#v, open=%v, err=%v", stats, open, err)
 			}
-			stats, open, err = manager.Stats(uuid.New())
+			stats, open, err = manager.Stats(uuid.NewV4())
 			if err != nil || open || stats.Items != 0 || manager.OpenCount() != 2 {
 				t.Fatalf("미개방 드라이브 통계 = %#v, open=%v, count=%d, err=%v", stats, open, manager.OpenCount(), err)
 			}
@@ -71,7 +71,7 @@ func TestDriveManagerClosesIdleDrive(t *testing.T) {
 		IdleTimeout: 10 * time.Millisecond,
 	})
 	t.Cleanup(func() { _ = manager.Close() })
-	if _, err := manager.Drive(uuid.New()); err != nil {
+	if _, err := manager.Drive(uuid.NewV4()); err != nil {
 		t.Fatal(err)
 	}
 	deadline := time.Now().Add(time.Second)
@@ -91,7 +91,7 @@ func TestDriveManagerBadgerResources(t *testing.T) {
 		},
 	})
 	t.Cleanup(func() { _ = manager.Close() })
-	userID := uuid.New()
+	userID := uuid.NewV4()
 	if _, err := manager.Drive(userID); err != nil {
 		t.Fatal(err)
 	}

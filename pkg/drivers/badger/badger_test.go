@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+	"uuid"
 
 	"github.com/dgraph-io/badger/v4"
 	"github.com/goccy/go-json"
-	"github.com/google/uuid"
 	vfs "github.com/shabatoily/govfs"
 	"github.com/shabatoily/govfs/pkg/log"
 	"github.com/stretchr/testify/assert"
@@ -277,7 +277,7 @@ func Test_BadgerVFS_Read(t *testing.T) {
 		{
 			name: "Read Non-existent File",
 			setup: func(_ *BadgerVFS) (uuid.UUID, []byte) {
-				return uuid.Nil, nil
+				return uuid.Nil(), nil
 			},
 			wantErr: assert.Error,
 		},
@@ -330,7 +330,7 @@ func Test_BadgerVFS_Write(t *testing.T) {
 		{
 			name: "Write Non-existent File",
 			setup: func(_ *BadgerVFS) uuid.UUID {
-				return uuid.Nil
+				return uuid.Nil()
 			},
 			content:  bytes.NewBufferString("new"),
 			expected: []byte("new"),
@@ -382,7 +382,7 @@ func Test_BadgerVFS_Delete(t *testing.T) {
 		{
 			name: "Delete Non-existent File",
 			setup: func(_ *BadgerVFS) uuid.UUID {
-				return uuid.Nil
+				return uuid.Nil()
 			},
 			wantErr: assert.Error, // Assuming delete returns error if not found
 		},
@@ -958,7 +958,7 @@ func Test_BadgerVFS_AtomicWrite_Rotation(t *testing.T) {
 				return err
 			})
 			require.NoError(t, err)
-			require.NotEqual(t, uuid.Nil, im.InternalID)
+			require.NotEqual(t, uuid.Nil(), im.InternalID)
 			// Generally InternalID != PublicID for new files (though implementation creates new IDs for both)
 
 			// 2. Write File (Version 2)

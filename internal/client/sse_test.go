@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"uuid"
 
 	"github.com/goccy/go-json"
-	"github.com/google/uuid"
 	"github.com/shabatoily/govfs/internal/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -31,7 +31,7 @@ func TestSSEClient_Subscribe(t *testing.T) {
 
 func TestSSEClient_Publish(t *testing.T) {
 	t.Run("Publish", func(t *testing.T) {
-		id := uuid.New()
+		id := uuid.NewV4()
 		data := map[string]any{"key": "value"}
 
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
