@@ -16,7 +16,7 @@ COPY webui .
 
 RUN yarn build
 
-FROM golang:1.26-alpine AS go
+FROM golang:1.27-alpine AS go
 
 ARG VERSION=dev
 ARG BUILD_TIME="unknown"
