@@ -4,11 +4,11 @@ package handlers
 import (
 	"bufio"
 	"time"
+	"uuid"
 
 	"github.com/gofiber/fiber/v3/log"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 	"github.com/shabatoily/govfs/internal/server/middlewares"
 	"github.com/shabatoily/govfs/internal/server/services"
 	"github.com/shabatoily/govfs/internal/types"

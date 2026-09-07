@@ -9,8 +9,8 @@ import (
 	"io"
 	"path"
 	"strings"
+	"uuid"
 
-	"github.com/google/uuid"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

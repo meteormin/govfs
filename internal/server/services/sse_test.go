@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/shabatoily/govfs/internal/types"
 )
 
@@ -45,7 +45,7 @@ func TestSSEBrokerSubscribeStopped(t *testing.T) {
 	b.Shutdown()
 
 	id, ch, err := b.Subscribe(types.SubscribeReq{Ctx: context.Background()})
-	if err == nil || id != uuid.Nil || ch != nil {
+	if err == nil || id != uuid.Nil() || ch != nil {
 		t.Fatalf("subscribe stopped broker = (%v, %v, %v)", id, ch, err)
 	}
 }
@@ -67,7 +67,7 @@ func TestSSEBrokerSubscribeRegistersBeforePublish(t *testing.T) {
 	}
 	<-ch // 구독 완료 이벤트를 제거합니다.
 
-	meta := types.SSEMeta{ID: uuid.New(), Action: "vfs.create"}
+	meta := types.SSEMeta{ID: uuid.NewV4(), Action: "vfs.create"}
 	b.Publish("", id, &types.SSEData{Status: true, Meta: meta}, 0)
 
 	select {

@@ -2,8 +2,7 @@ package types
 
 import (
 	"time"
-
-	"github.com/google/uuid"
+	"uuid"
 )
 
 type Role string

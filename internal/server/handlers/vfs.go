@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"uuid"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 	"github.com/shabatoily/govfs/internal/server/services"
 	"github.com/shabatoily/govfs/internal/types"
 )

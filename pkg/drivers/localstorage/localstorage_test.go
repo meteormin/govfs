@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"uuid"
 
-	"github.com/google/uuid"
 	vfs "github.com/shabatoily/govfs"
 	"github.com/shabatoily/govfs/pkg/log"
 	"github.com/stretchr/testify/assert"
@@ -223,7 +223,7 @@ func Test_LocalStorage_Read(t *testing.T) {
 		{
 			name: "Read Non-existent File",
 			setup: func(_ *LocalStorage) (uuid.UUID, []byte) {
-				return uuid.Nil, nil
+				return uuid.Nil(), nil
 			},
 			wantErr: assert.Error,
 		},
@@ -272,7 +272,7 @@ func Test_LocalStorage_Write(t *testing.T) {
 		{
 			name: "Write Non-existent File",
 			setup: func(_ *LocalStorage) uuid.UUID {
-				return uuid.Nil
+				return uuid.Nil()
 			},
 			content:  bytes.NewBufferString("new"),
 			expected: []byte("new"),
@@ -320,7 +320,7 @@ func Test_LocalStorage_Delete(t *testing.T) {
 		{
 			name: "Delete Non-existent File",
 			setup: func(_ *LocalStorage) uuid.UUID {
-				return uuid.Nil
+				return uuid.Nil()
 			},
 			wantErr: assert.Error,
 		},

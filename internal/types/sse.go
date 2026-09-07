@@ -6,9 +6,9 @@ import (
 	"io"
 	"strconv"
 	"time"
+	"uuid"
 
 	"github.com/goccy/go-json"
-	"github.com/google/uuid"
 )
 
 // SSEEvent는 서버 전송 이벤트(SSE)의 유형을 정의합니다.
@@ -60,7 +60,7 @@ type SSEMeta struct {
 
 // Zero는 메타데이터가 비어있는 상태인지(기본값인지)를 확인하여 반환합니다.
 func (m SSEMeta) Zero() bool {
-	return m.ID == uuid.Nil && m.Path == "" && m.Action == ""
+	return m.ID == uuid.Nil() && m.Path == "" && m.Action == ""
 }
 
 // SSEData는 SSE 이벤트를 통해 전달되는 실제 데이터 페이로드 구조체입니다.
@@ -116,7 +116,7 @@ func (msg *SSEMessage) WriteTo(w io.Writer) (int64, error) {
 	var err error
 
 	// ID 필드
-	if msg.ID != uuid.Nil {
+	if msg.ID != uuid.Nil() {
 		n, err = writeTo(w, "id", []byte(msg.ID.String()))
 		total += int64(n)
 		if err != nil {

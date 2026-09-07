@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"uuid"
 
 	"github.com/dgraph-io/badger/v4"
 	"github.com/goccy/go-json"
-	"github.com/google/uuid"
 	vfs "github.com/shabatoily/govfs"
 )
 
@@ -49,7 +49,7 @@ func (InternalIDMigrator) Migrate(db *badger.DB) error {
 
 				// internalId를 찾지 못했다면, 예전 방식의 InternalID를 사용합니다.
 				targetUUID := fallback.InternalIDv2
-				if targetUUID == uuid.Nil {
+				if targetUUID == uuid.Nil() {
 					targetUUID = fallback.InternalIDv1
 				}
 

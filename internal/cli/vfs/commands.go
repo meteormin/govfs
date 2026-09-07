@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/jedib0t/go-pretty/v6/list"
 	"github.com/jedib0t/go-pretty/v6/table"
 	vfs "github.com/shabatoily/govfs"

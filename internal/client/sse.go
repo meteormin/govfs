@@ -9,11 +9,11 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"uuid"
 
 	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/client"
-	"github.com/google/uuid"
 	"github.com/shabatoily/govfs/internal/types"
 )
 
@@ -63,7 +63,7 @@ func (c *SSEClient) SubscribeEvents(ctx context.Context) (*SSESubscription, erro
 		resp.Body.Close()
 		return nil, fmt.Errorf("read subscribe event: %w", err)
 	}
-	if first.Event != types.SSEEventSubscribe || first.ID == uuid.Nil {
+	if first.Event != types.SSEEventSubscribe || first.ID == uuid.Nil() {
 		resp.Body.Close()
 		return nil, errors.New("invalid subscribe event")
 	}

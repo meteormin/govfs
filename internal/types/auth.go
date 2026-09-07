@@ -3,9 +3,9 @@ package types
 
 import (
 	"time"
+	"uuid"
 
 	"github.com/goccy/go-json"
-	"github.com/google/uuid"
 )
 
 const (

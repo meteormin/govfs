@@ -2,11 +2,12 @@
 package middlewares
 
 import (
+	"uuid"
+
 	jwtware "github.com/gofiber/contrib/v3/jwt"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/extractors"
 	"github.com/gofiber/fiber/v3/log"
-	"github.com/google/uuid"
 	"github.com/shabatoily/govfs/internal/config"
 	"github.com/shabatoily/govfs/internal/server/services"
 	"github.com/shabatoily/govfs/internal/types"
