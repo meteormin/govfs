@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"os"
 	"strconv"
 	"strings"
@@ -251,37 +252,14 @@ func (h *VfsHandler) Create(ctx fiber.Ctx) error {
 			name = formFile.Filename
 		}
 
-		file, openErr := formFile.Open()
-		if openErr != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, openErr.Error())
-		}
-
-		tempFile, tempErr := os.CreateTemp("", "govfs-upload-*")
-		if tempErr != nil {
-			_ = file.Close()
-			return fiber.NewError(fiber.StatusInternalServerError, tempErr.Error())
-		}
-		tempPath := tempFile.Name()
-		_, copyErr := io.Copy(tempFile, file)
-		closeErr := file.Close()
-		if copyErr != nil {
-			_ = tempFile.Close()
-			_ = os.Remove(tempPath)
-			return fiber.NewError(fiber.StatusInternalServerError, copyErr.Error())
-		}
-		if closeErr != nil {
-			_ = tempFile.Close()
-			_ = os.Remove(tempPath)
-			return fiber.NewError(fiber.StatusInternalServerError, closeErr.Error())
-		}
-		if _, seekErr := tempFile.Seek(0, io.SeekStart); seekErr != nil {
-			_ = tempFile.Close()
-			_ = os.Remove(tempPath)
-			return fiber.NewError(fiber.StatusInternalServerError, seekErr.Error())
+		tempFile, err := copyUploadToTempFile(formFile)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 
 		h.asyncExecute(ctx.Get(headerXClientID), func() (types.SSEMeta, error) {
 			defer func() {
+				tempPath := tempFile.Name()
 				_ = tempFile.Close()
 				_ = os.Remove(tempPath)
 			}()
@@ -585,4 +563,35 @@ func (h *VfsHandler) asyncExecute(clientID string, do func() (types.SSEMeta, err
 		}
 		h.broker.Publish(h.user, cid, data, 0)
 	}()
+}
+
+func copyUploadToTempFile(formFile *multipart.FileHeader) (*os.File, error) {
+	file, openErr := formFile.Open()
+	if openErr != nil {
+		return nil, openErr
+	}
+	tempFile, tempErr := os.CreateTemp("", "govfs-upload-*")
+	if tempErr != nil {
+		_ = file.Close()
+		return nil, tempErr
+	}
+	tempPath := tempFile.Name()
+	_, copyErr := io.Copy(tempFile, file)
+	closeErr := file.Close()
+	if copyErr != nil {
+		_ = tempFile.Close()
+		_ = os.Remove(tempPath)
+		return nil, copyErr
+	}
+	if closeErr != nil {
+		_ = tempFile.Close()
+		_ = os.Remove(tempPath)
+		return nil, closeErr
+	}
+	if _, seekErr := tempFile.Seek(0, io.SeekStart); seekErr != nil {
+		_ = tempFile.Close()
+		_ = os.Remove(tempPath)
+		return nil, seekErr
+	}
+	return tempFile, nil
 }
