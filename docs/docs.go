@@ -164,7 +164,14 @@ const docTemplate = `{
             },
             "types.DstReq": {
                 "properties": {
+                    "checkConflict": {
+                        "description": "충돌 확인을 활성화합니다.",
+                        "type": "boolean"
+                    },
                     "name": {
+                        "type": "string"
+                    },
+                    "replaceId": {
                         "type": "string"
                     }
                 },
@@ -300,6 +307,10 @@ const docTemplate = `{
                     },
                     "id": {
                         "description": "관련 리소스 ID",
+                        "type": "string"
+                    },
+                    "oldPath": {
+                        "description": "이동 이전 경로",
                         "type": "string"
                     },
                     "path": {
@@ -2278,6 +2289,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "description": "완료까지 대기",
+                        "in": "query",
+                        "name": "wait",
+                        "schema": {
+                            "type": "boolean"
+                        }
                     }
                 ],
                 "requestBody": {
@@ -2301,6 +2320,16 @@ const docTemplate = `{
                     "required": true
                 },
                 "responses": {
+                    "200": {
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.MetaRes"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
                     "202": {
                         "content": {
                             "text/plain": {
@@ -2330,6 +2359,16 @@ const docTemplate = `{
                             }
                         },
                         "description": "Unauthorized"
+                    },
+                    "409": {
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "description": "destination conflict"
                     },
                     "500": {
                         "content": {
@@ -2537,6 +2576,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "description": "완료까지 대기",
+                        "in": "query",
+                        "name": "wait",
+                        "schema": {
+                            "type": "boolean"
+                        }
                     }
                 ],
                 "requestBody": {
@@ -2560,6 +2607,16 @@ const docTemplate = `{
                     "required": true
                 },
                 "responses": {
+                    "200": {
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.MetaRes"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
                     "202": {
                         "content": {
                             "text/plain": {
@@ -2589,6 +2646,16 @@ const docTemplate = `{
                             }
                         },
                         "description": "Unauthorized"
+                    },
+                    "409": {
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "description": "destination conflict"
                     },
                     "500": {
                         "content": {

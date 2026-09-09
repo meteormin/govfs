@@ -356,142 +356,133 @@ func (ls *LocalStorage) StatByPath(p string) (vfs.Meta, error) {
 }
 
 // Move는 파일 또는 디렉토리를 새로운 경로로 이동시킵니다.
-func (ls *LocalStorage) Move(id uuid.UUID, dst string) (vfs.Meta, error) {
-	ls.mu.Lock()
-	defer ls.mu.Unlock()
-
-	meta, ok := ls.idMap[id]
-	if !ok {
-		return vfs.Meta{}, vfs.ErrNotFound
-	}
-
-	dst = strings.TrimSpace(dst)
-	if !strings.HasPrefix(dst, "/") {
-		dst = "/" + dst
-	}
-
-	// Enforce trailing slash for directories to maintain consistency with Mkdir
-	if meta.IsDir && !strings.HasSuffix(dst, "/") {
-		dst += "/"
-	}
-
-	if _, exists := ls.pathMap[dst]; exists {
-		return vfs.Meta{}, vfs.ErrAlreadyExists
-	}
-
-	srcLocal := ls.toLocalPath(meta.Path)
-	dstLocal := ls.toLocalPath(dst)
-
-	if err := os.MkdirAll(filepath.Dir(dstLocal), vfs.DefaultDirMode); err != nil {
-		return vfs.Meta{}, err
-	}
-
-	if err := os.Rename(srcLocal, dstLocal); err != nil {
-		return vfs.Meta{}, fmt.Errorf("rename failed: %w", err)
-	}
-
-	oldPath := meta.Path
-	delete(ls.pathMap, oldPath)
-
-	meta.Path = dst
-	meta.Name = filepath.Base(strings.TrimSuffix(dst, "/"))
-	meta.Modified = time.Now()
-
-	ls.idMap[id] = meta
-	ls.pathMap[dst] = meta
-
-	if meta.IsDir {
-		prefix := oldPath
-		if !strings.HasSuffix(prefix, "/") {
-			prefix += "/"
-		}
-		dstPrefix := dst
-		if !strings.HasSuffix(dstPrefix, "/") {
-			dstPrefix += "/"
-		}
-
-		for uid, m := range ls.idMap {
-			if uid == id {
-				continue
-			}
-			if after, ok0 := strings.CutPrefix(m.Path, prefix); ok0 {
-				rel := after
-				newPath := dstPrefix + rel
-
-				delete(ls.pathMap, m.Path)
-				m.Path = newPath
-				m.Modified = time.Now()
-				ls.idMap[uid] = m
-				ls.pathMap[newPath] = m
-			}
-		}
-	}
-
-	return meta, nil
+func (ls *LocalStorage) Move(id uuid.UUID, dst string, replaceID ...uuid.UUID) (vfs.Meta, error) {
+	return ls.transfer(id, dst, false, replaceID)
 }
 
-// Copy는 파일 또는 디렉토리를 새로운 경로로 복사합니다.
-func (ls *LocalStorage) Copy(id uuid.UUID, dst string) (vfs.Meta, error) {
+// Copy는 파일 또는 디렉터리를 하위 항목과 함께 복사합니다.
+func (ls *LocalStorage) Copy(id uuid.UUID, dst string, replaceID ...uuid.UUID) (vfs.Meta, error) {
+	if len(replaceID) == 0 {
+		replaceID = []uuid.UUID{uuid.Nil()}
+	}
+	return ls.transfer(id, dst, true, replaceID)
+}
+
+func (ls *LocalStorage) transfer(id uuid.UUID, dst string, copyItem bool, replaceID []uuid.UUID) (vfs.Meta, error) {
 	ls.mu.Lock()
 	defer ls.mu.Unlock()
-
-	srcMeta, ok := ls.idMap[id]
+	src, ok := ls.idMap[id]
 	if !ok {
 		return vfs.Meta{}, vfs.ErrNotFound
 	}
-
-	if srcMeta.IsDir {
-		return vfs.Meta{}, fmt.Errorf("directory copy not supported in this simplistic implementation")
-	}
-
-	dst = strings.TrimSpace(dst)
-	if !strings.HasPrefix(dst, "/") {
-		dst = "/" + dst
-	}
-
-	if _, exists := ls.pathMap[dst]; exists {
-		return vfs.Meta{}, vfs.ErrAlreadyExists
-	}
-
-	srcLocal := ls.toLocalPath(srcMeta.Path)
-	dstLocal := ls.toLocalPath(dst)
-
-	if err := os.MkdirAll(filepath.Dir(dstLocal), vfs.DefaultDirMode); err != nil {
-		return vfs.Meta{}, err
-	}
-
-	sFile, err := os.Open(srcLocal)
+	dst, err := vfs.TransferPath(src, dst)
 	if err != nil {
 		return vfs.Meta{}, err
 	}
-	defer sFile.Close()
+	target, exists := ls.pathMap[strings.TrimSuffix(dst, "/")]
+	if !exists {
+		target, exists = ls.pathMap[strings.TrimSuffix(dst, "/")+"/"]
+	}
+	var targetMeta *vfs.Meta
+	if exists {
+		targetMeta = &target
+	}
+	if err := vfs.CheckReplacement(targetMeta, replaceID); err != nil {
+		return vfs.Meta{}, err
+	}
 
-	dFile, err := os.Create(dstLocal)
+	tmp, err := os.MkdirTemp(ls.basePath, ".vfs-transfer-")
 	if err != nil {
 		return vfs.Meta{}, err
 	}
-	defer dFile.Close()
-
-	if _, copyErr := io.Copy(dFile, sFile); copyErr != nil {
-		return vfs.Meta{}, copyErr
+	keepTemp := false
+	defer func() {
+		if !keepTemp {
+			_ = os.RemoveAll(tmp)
+		}
+	}()
+	sourcePath := ls.toLocalPath(src.Path)
+	if copyItem {
+		staged := filepath.Join(tmp, "item")
+		if src.IsDir {
+			err = os.CopyFS(staged, os.DirFS(sourcePath))
+		} else {
+			err = copyFile(sourcePath, staged)
+		}
+		if err != nil {
+			return vfs.Meta{}, err
+		}
+		sourcePath = staged
+	}
+	destination := ls.toLocalPath(dst)
+	if err := os.MkdirAll(filepath.Dir(strings.TrimSuffix(destination, "/")), vfs.DefaultDirMode); err != nil {
+		return vfs.Meta{}, err
+	}
+	backup := filepath.Join(tmp, "previous")
+	if exists {
+		if err := os.Rename(ls.toLocalPath(target.Path), backup); err != nil {
+			return vfs.Meta{}, err
+		}
+	}
+	if err := os.Rename(strings.TrimSuffix(sourcePath, "/"), strings.TrimSuffix(destination, "/")); err != nil {
+		if exists {
+			if rollbackErr := os.Rename(backup, ls.toLocalPath(target.Path)); rollbackErr != nil {
+				keepTemp = true
+				return vfs.Meta{}, fmt.Errorf("transfer failed: %w; restore failed: %v; original retained at %s", err, rollbackErr, backup)
+			}
+		}
+		return vfs.Meta{}, err
 	}
 
-	newID := uuid.NewV4()
-
-	newMeta := vfs.Meta{
-		ID:        newID,
-		Path:      dst,
-		Name:      filepath.Base(strings.TrimSuffix(dst, "/")),
-		Extension: strings.TrimPrefix(filepath.Ext(dst), "."),
-		Size:      srcMeta.Size,
-		IsDir:     false,
-		Modified:  time.Now(),
+	// 실제 파일 전송이 성공한 뒤에만 인덱스를 변경합니다.
+	var items []vfs.Meta
+	for _, meta := range ls.idMap {
+		if meta.ID == id || (src.IsDir && strings.HasPrefix(meta.Path, src.Path)) {
+			items = append(items, meta)
+		}
 	}
+	if exists {
+		for uid, meta := range ls.idMap {
+			if uid == target.ID || (target.IsDir && strings.HasPrefix(meta.Path, target.Path)) {
+				delete(ls.idMap, uid)
+				delete(ls.pathMap, meta.Path)
+			}
+		}
+	}
+	var result vfs.Meta
+	for _, meta := range items {
+		originalID := meta.ID
+		if copyItem {
+			meta.ID = uuid.NewV4()
+		} else {
+			delete(ls.pathMap, meta.Path)
+		}
+		meta.Path = dst + strings.TrimPrefix(meta.Path, src.Path)
+		meta.Name = filepath.Base(strings.TrimSuffix(meta.Path, "/"))
+		meta.Extension = strings.TrimPrefix(filepath.Ext(meta.Name), ".")
+		meta.Modified = time.Now()
+		ls.idMap[meta.ID] = meta
+		ls.pathMap[meta.Path] = meta
+		if originalID == id {
+			result = meta
+		}
+	}
+	return result, nil
+}
 
-	ls.idMap[newID] = newMeta
-	ls.pathMap[dst] = newMeta
-
-	return newMeta, nil
+// copyFile은 복사가 완료된 임시 파일만 전송에 사용하도록 닫기 오류도 확인합니다.
+func copyFile(src, dst string) error {
+	input, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer input.Close()
+	output, err := os.OpenFile(dst, os.O_CREATE|os.O_EXCL|os.O_WRONLY, vfs.DefaultFileMode)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(output, input)
+	return errors.Join(err, output.Close())
 }
 
 // Close는 드라이버를 안전하게 종료하고 현재 인덱스를 저장합니다.

@@ -338,6 +338,9 @@ func (h *VfsHandler) Write(ctx fiber.Ctx) error {
 // @Produce      plain
 // @Param        id    path     string  true  "file id"
 // @Param        dst   body    types.DstReq  true  "destination"
+// @Param        wait  query   bool  false  "완료까지 대기"
+// @Success      200  {object} types.MetaRes
+// @Failure      409  {string} string "destination conflict"
 // @Success      202  {string}  string "Accepted"
 // @Failure      400  {string}  string
 // @Failure      401  {string}  string
@@ -357,6 +360,9 @@ func (h *VfsHandler) Move(ctx fiber.Ctx) error {
 // @Produce      plain
 // @Param        id    path     string  true  "file id"
 // @Param        dst   body    types.DstReq  true  "destination"
+// @Param        wait  query   bool  false  "완료까지 대기"
+// @Success      200  {object} types.MetaRes
+// @Failure      409  {string} string "destination conflict"
 // @Success      202  {string}  string "Accepted"
 // @Failure      400  {string}  string
 // @Failure      401  {string}  string
@@ -520,7 +526,7 @@ func parseDstReq(ctx fiber.Ctx) (*types.DstReq, error) {
 }
 
 // ModifyFunc는 VFS 아이템을 수정(이동, 복사 등)하는 함수의 시그니처입니다.
-type ModifyFunc func(id uuid.UUID, dst string) (types.MetaRes, error)
+type ModifyFunc func(id uuid.UUID, dst string, replaceID ...uuid.UUID) (types.MetaRes, error)
 
 func (h *VfsHandler) asyncModify(ctx fiber.Ctx, action string, fn ModifyFunc) error {
 	parsedID, err := fiber.Convert(ctx.Params("id"), uuid.Parse)
@@ -533,8 +539,32 @@ func (h *VfsHandler) asyncModify(ctx fiber.Ctx, action string, fn ModifyFunc) er
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
+	// 기본 이동은 덮어쓰고, 충돌 확인을 요청한 클라이언트에만 대상 조건을 전달합니다.
+	var replaceID []uuid.UUID
+	if req.CheckConflict || req.ReplaceID != uuid.Nil() {
+		replaceID = []uuid.UUID{req.ReplaceID}
+	}
+
+	// WebUI는 완료 응답으로 충돌을 처리하고, 기존 클라이언트는 비동기 방식을 유지합니다.
+	if ctx.Query("wait") == "true" {
+		source, err := h.srv.Stat(parsedID)
+		if err != nil {
+			return err
+		}
+		m, err := fn(parsedID, req.Name, replaceID...)
+		if err != nil {
+			return err
+		}
+		if cid, err := uuid.Parse(ctx.Get(headerXClientID)); err == nil {
+			h.broker.Publish(h.user, cid, &types.SSEData{
+				Timestamp: time.Now(), Status: true,
+				Meta: types.SSEMeta{ID: m.ID, Path: m.Path, OldPath: source.Path, Action: action},
+			}, 0)
+		}
+		return ctx.JSON(m)
+	}
 	h.asyncExecute(ctx.Get(headerXClientID), func() (types.SSEMeta, error) {
-		m, err := fn(parsedID, req.Name)
+		m, err := fn(parsedID, req.Name, replaceID...)
 		return types.SSEMeta{ID: m.ID, Path: m.Path, Action: action}, err
 	})
 

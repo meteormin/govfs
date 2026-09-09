@@ -174,10 +174,11 @@ type VFS interface {
 	Stat(id uuid.UUID) (Meta, error)
 	// StatByPath는 경로 문자열을 통해 파일 또는 디렉터리의 메타데이터를 조회합니다.
 	StatByPath(p string) (Meta, error)
-	// Move는 파일 또는 디렉터리를 새로운 경로로 이동시킵니다.
-	Move(id uuid.UUID, dst string) (Meta, error)
+	// Move는 파일 또는 디렉터리를 새 경로로 이동하며 기존 대상을 덮어씁니다.
+	// replaceID를 전달하면 대상 UUID가 일치해야 하며, Nil은 대상이 없어야 함을 뜻합니다.
+	Move(id uuid.UUID, dst string, replaceID ...uuid.UUID) (Meta, error)
 	// Copy는 파일 또는 디렉터리를 다른 경로로 복사합니다.
-	Copy(id uuid.UUID, dst string) (Meta, error)
+	Copy(id uuid.UUID, dst string, replaceID ...uuid.UUID) (Meta, error)
 	// Close는 시스템을 정상적으로 종료하고 점유 중인 리소스를 반환합니다.
 	Close() error
 	// Backup은 지정된 시점(since) 이후에 변경된 데이터들을 스트림(w)으로 백업합니다.

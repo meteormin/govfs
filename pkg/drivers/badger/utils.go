@@ -295,6 +295,7 @@ func moveItem(txn *badger.Txn, im *internalMeta, newPath string) error {
 	// 2. Update meta with new path and time
 	im.Path = newPath
 	im.Name = filepath.Base(strings.TrimSuffix(newPath, "/"))
+	im.Extension = strings.TrimPrefix(filepath.Ext(im.Name), ".")
 	im.Modified = time.Now()
 	// 3. Set new meta key
 	newKey := makeKey(prefixMeta, []byte(newPath))

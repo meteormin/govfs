@@ -769,3 +769,22 @@ func Test_LocalStoragePersistsUpdatedMetadata(t *testing.T) {
 	assert.Equal(t, int64(len("updated")), got.Size)
 	assert.Equal(t, "comment", got.Comments)
 }
+
+func TestCopyFailurePreservesReplacement(t *testing.T) {
+	ls, cleanup := setupVFS(t)
+	defer cleanup()
+	src, err := ls.Create("/source", bytes.NewBufferString("source"))
+	require.NoError(t, err)
+	dst, err := ls.Create("/target", bytes.NewBufferString("target"))
+	require.NoError(t, err)
+	// 원본 읽기 실패를 유발해 교체 대상이 먼저 삭제되지 않는지 확인합니다.
+	require.NoError(t, os.Remove(ls.toLocalPath(src.Path)))
+	_, err = ls.Copy(src.ID, dst.Path, dst.ID)
+	require.Error(t, err)
+	file, err := ls.Open(dst.ID)
+	require.NoError(t, err)
+	defer file.Close()
+	data, err := io.ReadAll(file)
+	require.NoError(t, err)
+	require.Equal(t, "target", string(data))
+}
