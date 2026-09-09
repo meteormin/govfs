@@ -33,7 +33,6 @@
     let diagnostics = $state<Record<string, unknown>>({});
     let error = $state("");
     let entries = $state<SystemEntry[]>([]);
-    let entriesVisible = $state(false);
     let entryPage = $state(1);
     let entryTotal = $state(0);
     const entryPageSize = 20;
@@ -68,7 +67,6 @@
         entries = data.items;
         entryPage = data.page;
         entryTotal = data.total;
-        entriesVisible = true;
     }
 
     onMount(() => load().catch((e) => error = e.message));
@@ -85,8 +83,8 @@
                 <div class="rounded bg-gray-900 p-3">System items<br /><strong>{status.system.items}</strong></div>
                 <div class="rounded bg-gray-900 p-3">System size<br /><strong>{formatBytes(status.system.size)}</strong></div>
             </div>
-            <div class="mb-5 overflow-hidden rounded bg-gray-900 text-sm">
-                <h3 class="border-b border-gray-700 p-3 font-semibold text-white">Open Badger drives</h3>
+            <details class="mb-5 overflow-hidden rounded bg-gray-900 text-sm">
+                <summary class="cursor-pointer p-3 font-semibold text-white">Open Badger drives</summary>
                 {#if status.badgerDrives.length}
                     <div class="overflow-auto">
                         <table class="w-full text-left">
@@ -115,12 +113,12 @@
                 {:else}
                     <p class="p-3 text-gray-400">No open Badger drives</p>
                 {/if}
-            </div>
-            <div class="mb-5">
-                <button class="text-sm text-blue-300 hover:text-blue-200" onclick={() => loadEntries(1).catch((e) => error = e.message)}>System DB details</button>
-            </div>
-            {#if entriesVisible}
-                <div class="mb-5 overflow-hidden rounded bg-gray-900 text-sm">
+            </details>
+            <details class="mb-5 overflow-hidden rounded bg-gray-900 text-sm"
+                ontoggle={(event) => {
+                    if (event.currentTarget.open) loadEntries(1).catch((e) => error = e.message);
+                }}>
+                <summary class="cursor-pointer p-3 font-semibold text-white">System DB details</summary>
                     {#each entries as entry}
                         <div class="border-b border-gray-700 p-3 last:border-0">
                             <div class="mb-1 flex gap-3"><span class="text-blue-300">{entry.kind}</span><code class="break-all">{entry.key}</code></div>
@@ -132,8 +130,7 @@
                         <button class="text-blue-300 disabled:text-gray-600" disabled={entryPage <= 1} onclick={() => loadEntries(entryPage - 1).catch((e) => error = e.message)}>Previous</button>
                         <button class="text-blue-300 disabled:text-gray-600" disabled={entryPage * entryPageSize >= entryTotal} onclick={() => loadEntries(entryPage + 1).catch((e) => error = e.message)}>Next</button>
                     </div>
-                </div>
-            {/if}
+            </details>
             <div class="flex gap-3 mb-3 text-sm">
                 <a class="text-blue-300" href="/debug/pprof/" target="_blank">pprof</a>
                 <a class="text-blue-300" href="/debug/vars" target="_blank">expvar</a>

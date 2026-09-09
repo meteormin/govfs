@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/svelte';
+import { fireEvent, render, screen } from '@testing-library/svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import AdminStatus from './AdminStatus.svelte';
 
@@ -28,5 +28,14 @@ describe('AdminStatus Component', () => {
         expect(screen.getByText('1.00 MiB')).toBeInTheDocument();
         expect(screen.getByText('256.00 MiB')).toBeInTheDocument();
         expect(screen.getByText('100.00 MiB')).toBeInTheDocument();
+        for (const name of ['Open Badger drives', 'System DB details']) {
+            const summary = screen.getByText(name);
+            const section = summary.closest('details')!;
+            expect(section.open).toBe(false);
+            await fireEvent.click(summary);
+            expect(section.open).toBe(true);
+            await fireEvent.click(summary);
+            expect(section.open).toBe(false);
+        }
     });
 });

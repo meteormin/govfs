@@ -53,7 +53,14 @@
     }
 
 	async function showDetails(user: User) {
+		if (selected?.id === user.id) {
+			selected = null;
+			drive = null;
+			activityVisible = false;
+			return;
+		}
 		selected = user;
+		drive = null;
 		activityVisible = true;
 		const statusRes = await fetch(`/admin/users/${user.id}/status`);
 		if (!statusRes.ok) throw new Error(await statusRes.text());
@@ -72,10 +79,11 @@
 	}
 
 	async function showAllActivity() {
+		const wasAllActivity = activityVisible && !selected;
 		selected = null;
 		drive = null;
-		activityVisible = true;
-		await loadEvents(1);
+		activityVisible = !wasAllActivity;
+		if (activityVisible) await loadEvents(1);
 	}
 
 	async function clearEvents() {
@@ -132,7 +140,7 @@
     <div class="mx-auto max-w-5xl">
         <div class="mb-5 flex items-center justify-between">
 			<h2 class="text-xl font-bold text-white">User management</h2>
-			<button class="text-sm text-blue-300 hover:text-blue-200" onclick={() => showAllActivity().catch((e) => error = e.message)}>All activity</button>
+			<button class="text-sm text-blue-300 hover:text-blue-200" aria-expanded={activityVisible && !selected} onclick={() => showAllActivity().catch((e) => error = e.message)}>All activity</button>
 		</div>
         {#if error}<p class="mb-3 text-sm text-red-300">{error}</p>{/if}
         <form class="grid grid-cols-[1fr_1fr_auto_auto] gap-2 mb-5" onsubmit={(e) => { e.preventDefault(); createUser(); }}>
@@ -152,7 +160,7 @@
                         <span class="ml-2 text-xs text-gray-400">{user.role}</span>
                     </div>
 					<div class="flex gap-3">
-						<button class="text-sm text-blue-300" onclick={() => showDetails(user).catch((e) => error = e.message)}>Details</button>
+						<button class="text-sm text-blue-300" aria-expanded={selected?.id === user.id} onclick={() => showDetails(user).catch((e) => error = e.message)}>Details</button>
 						<button class="text-sm {user.disabled ? 'text-green-300' : 'text-red-300'}" onclick={() => toggleUser(user)}>
 							{user.disabled ? "Enable" : "Disable"}
 						</button>
