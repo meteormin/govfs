@@ -67,16 +67,14 @@ func Register(app *fiber.App, cfg *config.ServerConfig, users *services.UserStor
 	jwtAuth := JWTAuthMiddleware(cfg.Auth)
 	userAuth := UserMiddleware(users)
 
-	// debug/vars 라우트 활성화 여부 확인
-	if cfg.Middlewares.Expvar {
-		app.All("/debug/vars", jwtAuth, userAuth, AdminOnly)
-		app.Use(expvar.New()).Name("debug.vars")
-	}
-
 	// debug/pprof 라우트 활성화 여부 확인
 	if cfg.Middlewares.Pprof {
-		app.All("/debug/pprof/*", jwtAuth, userAuth, AdminOnly)
-		app.Use(pprof.New()).Name("debug.pprof")
+		app.Get("/debug/pprof/*", pprof.New()).Name("debug.pprof")
+	}
+
+	// debug/vars 라우트 활성화 여부 확인
+	if cfg.Middlewares.Expvar {
+		app.All("/debug/vars", jwtAuth, userAuth, AdminOnly, expvar.New()).Name("debug.vars")
 	}
 
 	// 환경 변수 노출 라우트 활성화 여부 확인
