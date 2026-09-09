@@ -720,7 +720,7 @@ func (bvfs *BadgerVFS) Stat(id uuid.UUID) (vfs.Meta, error) {
 }
 
 // Move는 파일 또는 디렉토리를 새로운 경로로 이동시킵니다.
-func (bvfs *BadgerVFS) Move(id uuid.UUID, dst string) (vfs.Meta, error) {
+func (bvfs *BadgerVFS) Move(id uuid.UUID, dst string, replaceID ...uuid.UUID) (vfs.Meta, error) {
 	dst = strings.TrimSpace(dst)
 	if !strings.HasPrefix(dst, "/") {
 		dst = "/" + dst
@@ -741,15 +741,11 @@ func (bvfs *BadgerVFS) Move(id uuid.UUID, dst string) (vfs.Meta, error) {
 			return internalErr
 		}
 
-		if im.IsDir && !strings.HasSuffix(dst, "/") {
-			dst += "/"
+		dst, internalErr = vfs.TransferPath(im.Meta, dst)
+		if internalErr != nil {
+			return internalErr
 		}
-
-		// Check if destination already exists
-		dstMetaKey := makeKey(prefixMeta, []byte(dst))
-		if _, err := txn.Get(dstMetaKey); err == nil {
-			return vfs.ErrAlreadyExists
-		} else if !errors.Is(err, badger.ErrKeyNotFound) {
+		if err := prepareTransfer(txn, dst, replaceID); err != nil {
 			return err
 		}
 
@@ -779,77 +775,109 @@ func (bvfs *BadgerVFS) Move(id uuid.UUID, dst string) (vfs.Meta, error) {
 }
 
 // Copy는 파일 또는 디렉토리를 새로운 경로로 복사합니다.
-func (bvfs *BadgerVFS) Copy(id uuid.UUID, dst string) (vfs.Meta, error) {
-	var im internalMeta
-	var newIM internalMeta
-
-	dst = strings.TrimSpace(dst)
-	if !strings.HasPrefix(dst, "/") {
-		dst = "/" + dst
+func (bvfs *BadgerVFS) Copy(id uuid.UUID, dst string, replaceID ...uuid.UUID) (vfs.Meta, error) {
+	if len(replaceID) == 0 {
+		replaceID = []uuid.UUID{uuid.Nil()}
 	}
-
+	var result vfs.Meta
+	var chunks []uuid.UUID
 	err := bvfs.db.Update(func(txn *badger.Txn) error {
-		item, internalErr := findMetaItemByID(txn, id)
-		if internalErr != nil {
-			if errors.Is(internalErr, badger.ErrKeyNotFound) {
-				return vfs.ErrNotFound
-			}
-			return internalErr
+		item, err := findMetaItemByID(txn, id)
+		if errors.Is(err, badger.ErrKeyNotFound) {
+			return vfs.ErrNotFound
 		}
-
-		im, internalErr = getMeta(item)
-		if internalErr != nil {
-			return internalErr
-		}
-
-		idBytes := im.InternalID[:]
-
-		// Read all chunks from source (using InternalID)
-		reader := &blobReader{
-			vfs:  bvfs,
-			id:   idBytes,
-			size: im.Size,
-		}
-
-		// 새로운 ID로 복제
-
-		newMetaID := uuid.NewV4()
-
-		newInternalID := uuid.NewV4()
-		// New internal ID for the Copy
-		newInternalIDBytes := newInternalID[:]
-
-		newIM = im
-		newIM.ID = newMetaID
-		newIM.Path = dst
-		newIM.Name = filepath.Base(strings.TrimSuffix(dst, "/"))
-		newIM.Modified = time.Now()
-		newIM.InternalID = newInternalID
-
-		metaKey := makeKey(prefixMeta, []byte(dst))
-		if setMetaErr := setMeta(txn, metaKey, &newIM); setMetaErr != nil {
-			return setMetaErr
-		}
-
-		newIdBytes := newIM.ID[:]
-
-		if _, err := bvfs.writeChunks(newInternalIDBytes, reader); err != nil {
+		if err != nil {
 			return err
 		}
-
-		newIndexKey := makeKey(prefixIndex, newIdBytes)
-		if internalErr := txn.Set(newIndexKey, []byte(dst)); internalErr != nil {
-			return internalErr
+		src, err := getMeta(item)
+		if err != nil {
+			return err
+		}
+		dst, err = vfs.TransferPath(src.Meta, dst)
+		if err != nil {
+			return err
+		}
+		if err := prepareTransfer(txn, dst, replaceID); err != nil {
+			return err
+		}
+		items, err := transferItems(txn, src)
+		if err != nil {
+			return err
+		}
+		for _, original := range items {
+			copied := original
+			copied.ID = uuid.NewV4()
+			copied.InternalID = uuid.NewV4()
+			copied.Path = dst + strings.TrimPrefix(original.Path, src.Path)
+			copied.Name = filepath.Base(strings.TrimSuffix(copied.Path, "/"))
+			copied.Extension = strings.TrimPrefix(filepath.Ext(copied.Name), ".")
+			copied.Modified = time.Now()
+			if !copied.IsDir {
+				chunks = append(chunks, copied.InternalID)
+				reader := &blobReader{vfs: bvfs, id: original.InternalID[:], size: original.Size}
+				if _, err := bvfs.writeChunks(copied.InternalID[:], reader); err != nil {
+					return err
+				}
+			}
+			if err := setMeta(txn, makeKey(prefixMeta, []byte(copied.Path)), &copied); err != nil {
+				return err
+			}
+			if err := txn.Set(makeKey(prefixIndex, copied.ID[:]), []byte(copied.Path)); err != nil {
+				return err
+			}
+			if original.ID == id {
+				result = copied.Meta
+			}
 		}
 		return nil
 	})
 	if err != nil {
+		for _, id := range chunks {
+			err = errors.Join(err, bvfs.deleteChunks(id[:]))
+		}
 		return vfs.Meta{}, err
 	}
+	return result, nil
+}
 
-	bvfs.logger.Debug().Str("ID", newIM.ID.String()).Str("Path", newIM.Path).Msg("Copy")
+// transferItems는 디렉터리 자체를 포함한 복사 및 교체 대상을 수집합니다.
+func transferItems(txn *badger.Txn, root internalMeta) ([]internalMeta, error) {
+	items := []internalMeta{root}
+	if !root.IsDir {
+		return items, nil
+	}
+	it := txn.NewIterator(badger.DefaultIteratorOptions)
+	defer it.Close()
+	prefix := makeKey(prefixMeta, []byte(root.Path))
+	for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+		item, err := getMeta(it.Item())
+		if err != nil {
+			return nil, err
+		}
+		if item.ID != root.ID {
+			items = append(items, item)
+		}
+	}
+	return items, nil
+}
 
-	return newIM.Meta, nil
+// prepareTransfer는 동일 트랜잭션에서 충돌을 검사하고 교체할 항목을 제거합니다.
+func prepareTransfer(txn *badger.Txn, dst string, replaceID []uuid.UUID) error {
+	target, err := findByPath(txn, strings.TrimSuffix(dst, "/"))
+	if errors.Is(err, vfs.ErrNotFound) {
+		return vfs.CheckReplacement(nil, replaceID)
+	}
+	if err != nil {
+		return err
+	}
+	if err := vfs.CheckReplacement(&target.Meta, replaceID); err != nil {
+		return err
+	}
+	items, err := transferItems(txn, target)
+	if err != nil {
+		return err
+	}
+	return deleteItems(txn, items)
 }
 
 // Close는 VFS 드라이버를 안전하게 종료합니다. (진행 중인 GC 중단 및 DB 연결 종료)

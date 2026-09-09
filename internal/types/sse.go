@@ -53,9 +53,10 @@ type ClientList struct {
 
 // SSEMeta는 SSE 이벤트와 관련된 부가적인 메타데이터를 담고 있는 구조체입니다.
 type SSEMeta struct {
-	ID     uuid.UUID `json:"id,omitempty"`     // 관련 리소스 ID
-	Path   string    `json:"path,omitempty"`   // 관련 리소스 경로
-	Action string    `json:"action,omitempty"` // 수행된 액션
+	OldPath string    `json:"oldPath,omitempty"` // 이동 이전 경로
+	ID      uuid.UUID `json:"id,omitempty"`      // 관련 리소스 ID
+	Path    string    `json:"path,omitempty"`    // 관련 리소스 경로
+	Action  string    `json:"action,omitempty"`  // 수행된 액션
 }
 
 // Zero는 메타데이터가 비어있는 상태인지(기본값인지)를 확인하여 반환합니다.

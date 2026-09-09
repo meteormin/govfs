@@ -105,6 +105,19 @@ govfs --config /path/to/config.toml service install
 운영 환경에서는 재시작 후에도 기존 token을 검증할 수 있도록 JWT secret을 고정해야
 합니다.
 
+## 웹 UI 복사·이동
+
+파일 트리의 Copy 또는 Move 버튼에서 이름을 포함한 전체 대상 경로를 입력합니다.
+같은 경로의 항목이 있으면 이름을 바꾸거나 Replace를 선택할 수 있습니다.
+폴더 Replace는 기존 하위 항목까지 교체하며, 되돌릴 수 없습니다.
+
+WebUI는 기존 이동·복사 API에 `?wait=true`를 사용해 완료 결과(200) 또는 충돌(409)을
+받습니다. WebUI는 `checkConflict: true`로 충돌 확인을 요청하며, 교체 시
+`replaceId`에 확인한 대상 UUID를 전달합니다. 대상 UUID가 달라졌으면 다시 확인합니다.
+서버 Move는 별도 조건이 없으면 기존 대상을 덮어씁니다. Copy는 기존처럼 충돌을
+거부하며, `replaceId`로 교체 대상을 지정할 수 있습니다.
+기존 CLI의 비동기 응답(202)과 SSE 방식은 유지합니다.
+
 ## Configuration
 
 현재 `config.toml`의 전체 구조는 다음과 같습니다.

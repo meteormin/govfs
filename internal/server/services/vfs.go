@@ -117,8 +117,8 @@ func (s *VfsService) Write(id uuid.UUID, content *bytes.Buffer) (types.MetaRes, 
 }
 
 // Move는 파일 또는 디렉토리를 이동합니다.
-func (s *VfsService) Move(id uuid.UUID, dst string) (types.MetaRes, error) {
-	meta, err := s.vfs.Move(id, dst)
+func (s *VfsService) Move(id uuid.UUID, dst string, replaceID ...uuid.UUID) (types.MetaRes, error) {
+	meta, err := s.vfs.Move(id, dst, replaceID...)
 	if err != nil {
 		return types.MetaRes{}, err
 	}
@@ -127,8 +127,8 @@ func (s *VfsService) Move(id uuid.UUID, dst string) (types.MetaRes, error) {
 }
 
 // Copy는 파일 또는 디렉토리를 복사합니다.
-func (s *VfsService) Copy(id uuid.UUID, dst string) (types.MetaRes, error) {
-	meta, err := s.vfs.Copy(id, dst)
+func (s *VfsService) Copy(id uuid.UUID, dst string, replaceID ...uuid.UUID) (types.MetaRes, error) {
+	meta, err := s.vfs.Copy(id, dst, replaceID...)
 	if err != nil {
 		return types.MetaRes{}, err
 	}

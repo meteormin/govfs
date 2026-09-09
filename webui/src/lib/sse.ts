@@ -1,6 +1,7 @@
 export type SSEEventType = 'subscribe' | 'unsubscribe' | 'publish' | 'error' | 'heartbeat' | 'open';
 
 export interface SSEMeta {
+    oldPath?: string; // 이동 이전 경로
     id?: string; // 파일 ID
     path?: string; // 파일 경로
     action?: string; // 액션

@@ -1,5 +1,6 @@
 import vfs, { type FileInfo } from './vfs';
-import { getParentPath } from './utils';
+import { getParentPath, normalizePath, isAncestorOrSame } from './utils';
+import { tick } from 'svelte';
 import sseClient from './sse';
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
@@ -145,7 +146,21 @@ export class AppState {
     async handleVFSUpdate(meta: any) {
         if (!meta || !meta.action || !meta.action.startsWith("vfs.")) return;
 
-        const { id, action, path } = meta;
+        const { id, action, path, oldPath } = meta;
+        if (action === "vfs.move" && oldPath && path) {
+            const source = normalizePath(oldPath);
+            const destination = normalizePath(path);
+            if (isAncestorOrSame(source, normalizePath(this.currentPath))) {
+                this.setCurrentPath(destination + normalizePath(this.currentPath).slice(source.length));
+            }
+            this.triggerRefreshPath(getParentPath(oldPath));
+            await tick();
+        }
+        if (oldPath && path && this.currentFile &&
+            (isAncestorOrSame(normalizePath(oldPath), normalizePath(this.currentFile.path)) ||
+             isAncestorOrSame(normalizePath(path), normalizePath(this.currentFile.path)))) {
+            this.setCurrentFile(await vfs.stat(this.currentFile.id));
+        }
 
         // 1. Handle Deletion
         if (action === "vfs.delete") {

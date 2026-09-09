@@ -5,6 +5,8 @@
         ChevronRight,
         ChevronDown,
         Pencil,
+        Copy,
+        FolderInput,
         Trash2,
         LoaderCircle,
     } from "lucide-svelte";
@@ -17,6 +19,8 @@
         normalizePath,
     } from "../utils";
     import FileTreeItem from "./FileTreeItem.svelte";
+
+    import TransferDialog from "./TransferDialog.svelte";
 
     interface Props {
         file: FileInfo;
@@ -38,6 +42,7 @@
         onRefresh,
     }: Props = $props();
 
+    let transferAction = $state<"copy" | "move" | null>(null);
     let expanded = $state(false);
     let children = $state<FileInfo[]>([]);
     let loading = $state(false);
@@ -129,7 +134,7 @@
         }
 
         const newPath = resolvePath(
-            file.path.split("/").slice(0, -1).join("/") || "/",
+            getParentPath(file.path),
             newName,
         );
 
@@ -230,6 +235,10 @@
 </script>
 
 <li>
+    {#if transferAction}
+        <TransferDialog {file} action={transferAction}
+            onClose={() => transferAction = null} onComplete={() => onRefresh?.()} />
+    {/if}
     <!-- 키보드 입력은 상위 tree에서 보이는 항목 순서대로 처리합니다. -->
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
@@ -280,8 +289,16 @@
 
         <!-- Actions (Group Hover) -->
         <div
-            class="hidden group-hover:flex items-center gap-1 bg-gray-900/90 rounded px-1 absolute right-1"
+            class="hidden group-hover:flex group-focus-within:flex items-center gap-1 bg-gray-900/90 rounded px-1 absolute right-1"
         >
+            <button class="p-1 hover:text-blue-400" title="Copy" aria-label="Copy"
+                onclick={(e) => { e.stopPropagation(); transferAction = "copy"; }}>
+                <Copy size={12} />
+            </button>
+            <button class="p-1 hover:text-blue-400" title="Move" aria-label="Move"
+                onclick={(e) => { e.stopPropagation(); transferAction = "move"; }}>
+                <FolderInput size={12} />
+            </button>
             <button
                 class="p-1 hover:text-blue-400 transition-colors"
                 onclick={handleRename}

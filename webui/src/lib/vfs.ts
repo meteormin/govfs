@@ -14,7 +14,10 @@ export interface TreeNode {
     children: TreeNode[];
 }
 
+export class VfsConflictError extends Error {}
+
 export interface VFS {
+    transfer: (action: 'copy' | 'move', id: string, destPath: string, replaceId?: string) => Promise<FileInfo>;
     list: (path: string) => Promise<FileInfo[]>;
     search: (query: string) => Promise<FileInfo[]>;
     tree: (path: string) => Promise<TreeNode>;
@@ -54,13 +57,24 @@ async function vfsFetch(input: RequestInfo | URL, init?: RequestInit): Promise<R
 
 /// ----------- VFS API (Server is generic, client decides type) -----------------
 const vfs: VFS = {
+    async transfer(action, id, destPath, replaceId) {
+        const suffix = action === 'copy' ? '/copy' : '';
+        const res = await vfsFetch(`/vfs/${encodeURIComponent(id)}${suffix}?wait=true`, {
+            method: action === 'copy' ? 'POST' : 'PATCH',
+            headers: getHeaders('application/json'),
+            body: JSON.stringify({ name: destPath, checkConflict: true, replaceId }),
+        });
+        if (res.status === 409) throw new VfsConflictError(await res.text());
+        if (!res.ok) throw new Error(await res.text());
+        return await res.json() as FileInfo;
+    },
     // 파일 목록
     async list(path: string = '/'): Promise<FileInfo[]> {
         const res = await vfsFetch(`/vfs?q=${encodeURIComponent(path)}`, {
             headers: getHeaders()
         });
         if (!res.ok) throw new Error(await res.text());
-        return (await res.json()).payload as FileInfo[]; // [{id, name, size, modified}, ...]
+        return ((await res.json()).payload ?? []) as FileInfo[]; // [{id, name, size, modified}, ...]
     },
 
     async search(query: string): Promise<FileInfo[]> {

@@ -2,6 +2,8 @@
 package types
 
 import (
+	"uuid"
+
 	vfs "github.com/shabatoily/govfs"
 )
 
@@ -22,7 +24,9 @@ type WriteReq struct {
 
 // DstReq는 이동 또는 복사 시 대상 경로 이름을 담고 있는 구조체입니다.
 type DstReq struct {
-	Name string `json:"name"`
+	CheckConflict bool      `json:"checkConflict,omitempty"` // 충돌 확인을 활성화합니다.
+	Name          string    `json:"name"`
+	ReplaceID     uuid.UUID `json:"replaceId,omitempty"`
 }
 
 // WriteCommentReq는 각 파일의 설명을 업데이트하거나 생성할 때 사용하는 구조체입니다.
